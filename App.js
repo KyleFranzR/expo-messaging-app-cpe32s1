@@ -1,25 +1,93 @@
-import { StyleSheet, Text, View } from 'react-native';
-
+import React from 'react';
+import { StyleSheet, View, Alert, TouchableHighlight, Image, BackHandler } from 'react-native';
 import Status from './components/Status';
+import MessageList from './components/MessageList';
+import { createImageMessage, createLocationMessage, createTextMessage } from './components/MessageUtils';
 
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Status/>
+export default class App extends React.Component {
+  state = {
+    messages: [
+      createImageMessage('https://unsplash.it/300/300'),
+      createTextMessage('World'),
+      createTextMessage('Hello'),
+      createLocationMessage({
+        latitude: 37.78825,
+        longitude: -122.4324,
+      }),
+    ],
+    fullscreenImageId: null,
+  }
 
+  handlePressMessage = ({id, type}) => {
+    switch(type) {
+      case 'text':
+        Alert.alert('Confirm deletion', 'Are you sure to delete this message?', [
+          {text: 'No', style: 'cancel'},
+          {text: 'Yes', style: 'destructive', onPress: () => {
+            this.setState(state => ({messages: state.messages.filter(message => message.id !== id)}))
+          }},
+        ])
+        break;
+      case 'image':
+        this.setState({fullscreenImageId: id});
+        break;
+      default: break;
+    }
+  }
+
+  renderMessageList() {
+    const {messages} = this.state;
+    return (
       <View style={styles.content}>
-          <Text>content</Text>
+        <MessageList messages={messages} onPressMessage={this.handlePressMessage}/>
       </View>
-      
-      <View style={styles.toolbar}>
-        <Text>toolbar</Text>
+    );
+  }
+
+  renderImageFull = () => {
+    const {messages, fullscreenImageId} = this.state;
+    if (!fullscreenImageId) return null;
+    const img = messages.find(message => message.id === fullscreenImageId);
+    if (!img) return null;
+    return (
+      <TouchableHighlight style={styles.fullscreen} onPress={this.exitFullscreen}>
+        <Image style={styles.fullscreenImage} source={{uri: img.uri}} resizeMode='contain'/>
+      </TouchableHighlight>
+    )
+  }
+
+  exitFullscreen = () => {
+    this.setState({ fullscreenImageId: null });
+  }
+
+  componentWillMount() {
+    this.back = BackHandler.addEventListener('hardwareBackPress', () => {
+      const {fullscreenImageId} = this.state;
+      if (fullscreenImageId) {
+        this.exitFullscreen();
+        return true;
+      }
+      return false;
+    });
+  }
+
+  componentWillUnmount() {
+    this.back.remove()
+  }
+
+  render() {
+    return (
+      <View style={styles.container}>
+        <Status/>
+        {this.renderMessageList()}
+        <View style={styles.toolbar}>
+        </View>
+        <View style={styles.inputMethodEditor}>
+        </View>
+        {this.renderImageFull()}
       </View>
-      
-      <View style={styles.inputMethodEditor}>
-        <Text>inputMethodEditor</Text>
-      </View>
-    </View>
-  );
+    );
+  };
 }
 
 const styles = StyleSheet.create({
@@ -39,5 +107,14 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(0,0,0,0.04)',
     backgroundColor: 'white',
+  },
+  fullscreen: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 2,
+  },
+  fullscreenImage: {
+    flex: 1,
+    resizeMode: 'contain',
   },
 });
