@@ -3,6 +3,7 @@ import { StyleSheet, View, Alert, TouchableHighlight, Image, BackHandler } from 
 import Status from './components/Status';
 import MessageList from './components/MessageList';
 import { createImageMessage, createLocationMessage, createTextMessage } from './components/MessageUtils';
+import Toolbar from './components/Toolbar';
 
 export default class App extends React.Component {
   state = {
@@ -16,6 +17,7 @@ export default class App extends React.Component {
       }),
     ],
     fullscreenImageId: null,
+    isInputFocused: false,
   }
 
   handlePressMessage = ({id, type}) => {
@@ -29,11 +31,52 @@ export default class App extends React.Component {
         ])
         break;
       case 'image':
-        this.setState({fullscreenImageId: id});
+        this.setState({
+          fullscreenImageId: id,
+          isInputFocused: false,
+        });
         break;
       default: break;
     }
   }
+
+  exitFullscreen = () => {
+    this.setState({ fullscreenImageId: null });
+  }
+
+  componentWillMount() {
+    this.back = BackHandler.addEventListener('hardwareBackPress', () => {
+      const {fullscreenImageId} = this.state;
+      if (fullscreenImageId) {
+        this.exitFullscreen();
+        return true;
+      }
+      return false;
+    });
+  }
+
+  componentWillUnmount() {
+    this.back.remove()
+  }
+
+  handlePressToolbarCamera = () => {
+
+  };
+
+  handlePressToolbarLocation = () => {
+
+  };
+  
+  handleChangeFocus = (isFocused) => {
+    this.setState({isInputFocused: isFocused});
+  };
+
+  handleSubmit = (text) => {
+    const {messages} = this.state;
+    this.setState({
+      messages: [createTextMessage(text), ...messages],
+    });
+  };
 
   renderMessageList() {
     const {messages} = this.state;
@@ -56,23 +99,18 @@ export default class App extends React.Component {
     )
   }
 
-  exitFullscreen = () => {
-    this.setState({ fullscreenImageId: null });
-  }
-
-  componentWillMount() {
-    this.back = BackHandler.addEventListener('hardwareBackPress', () => {
-      const {fullscreenImageId} = this.state;
-      if (fullscreenImageId) {
-        this.exitFullscreen();
-        return true;
-      }
-      return false;
-    });
-  }
-
-  componentWillUnmount() {
-    this.back.remove()
+  renderToolbar() {
+    const {isInputFocused} = this.state;
+    return (
+      <View style={styles.toolbar}>
+        <Toolbar
+          isFocused={isInputFocused}
+          onSubmit={this.handleSubmit}
+          onChangeFocus={this.handleChangeFocus}
+          onPressCamera={this.handlePressToolbarCamera}
+          onPressLocation={this.handlePressToolbarLocation}/>
+      </View>
+    )
   }
 
   render() {
@@ -81,13 +119,14 @@ export default class App extends React.Component {
         <Status/>
         {this.renderMessageList()}
         <View style={styles.toolbar}>
+          {this.renderToolbar()}
         </View>
         <View style={styles.inputMethodEditor}>
         </View>
         {this.renderImageFull()}
       </View>
-    );
-  };
+    )
+  }
 }
 
 const styles = StyleSheet.create({
